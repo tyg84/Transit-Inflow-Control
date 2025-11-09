@@ -35,7 +35,7 @@ def generate_events(headway, platforms, platform_travel_times):
     other_stop_events = first_stop_events_df.merge(platform_travel_times, on = ['line_id','direction_id'])
     other_stop_events = other_stop_events.sort_values(['line_id','direction_id','train_id','station_id'])
     other_stop_events['travel_time_sec'] = other_stop_events['travel_time'] * 60
-    other_stop_events['arrival_timestamp'] = other_stop_events.groupby(['line_id','direction_id','train_id'])['travel_time_sec'].cumsum() + _constant.PLATFORM_STOP_TIME
+    other_stop_events['arrival_timestamp'] = other_stop_events.groupby(['line_id','direction_id','train_id'])['travel_time_sec'].cumsum() + _constant.DEFAULT_PLATFORM_STOP_TIME
     arrival_events = other_stop_events[['train_id','to_platform_id','arrival_timestamp']].rename(columns={
         'to_platform_id': 'platform_id',
         'arrival_timestamp':'event_timestamp'}).copy()
@@ -54,7 +54,7 @@ def generate_events(headway, platforms, platform_travel_times):
 
     ############ departure events
     departure_events = arrival_events.copy()
-    departure_events['event_timestamp'] += _constant.PLATFORM_STOP_TIME
+    departure_events['event_timestamp'] += _constant.DEFAULT_PLATFORM_STOP_TIME
     arrival_events['event_type'] = 'Arrival'
     departure_events['event_type'] = 'Departure'
     all_events = pd.concat([arrival_events, departure_events])

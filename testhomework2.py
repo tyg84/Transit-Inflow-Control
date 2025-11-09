@@ -138,15 +138,15 @@ if __name__ == '__main__':
     events = pd.read_csv('data/events.csv')
     paths = pd.read_csv('data/Paths.csv')
     train_capacity = pd.read_csv('data/train_capacity.csv')
-    final_platform_queues = pd.read_csv('data/final_platform_queues.csv')
+    # final_platform_queues = pd.read_csv('data/final_platform_queues.csv')
 
-    # Initialize platforms and inject passengers
-    initial_platforms = initialize_platforms(events)
-    initial_passengers = generate_mock_passengers(final_platform_queues)
-
-    for p in initial_passengers:
-        if p['currentplatform'] in initial_platforms:
-            initial_platforms[p['currentplatform']].append(p)
+    # # Initialize platforms and inject passengers
+    # initial_platforms = initialize_platforms(events)
+    # initial_passengers = generate_mock_passengers()
+    #
+    # for p in initial_passengers:
+    #     if p['currentplatform'] in initial_platforms:
+    #         initial_platforms[p['currentplatform']].append(p)
 
     # Run simulation with initialized passengers
     simulation_main(events, paths, train_capacity, platforms=initial_platforms)
