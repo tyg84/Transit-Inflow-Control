@@ -24,7 +24,9 @@ def generate_platforms(raw_data):
     platforms_df['platform_id'] = platforms_df['station_id'].astype('int').astype('str') + '_' + platforms_df['line_id'].astype('int').astype('str') + '_' + platforms_df['direction_id'].astype('int').astype('str')
     platforms_df['station_line_id'] = platforms_df['station_id'].astype('int').astype('str') + '_' + platforms_df[
         'line_id'].astype('int').astype('str')
-    column_seq = ['platform_id','station_line_id', 'station_id','line_id','direction_id','station_name','lat','lon']
+    platforms_df = platforms_df.sort_values(['line_id','direction_id','station_id','station_id'])
+    platforms_df['stop_seq'] = platforms_df.groupby(['line_id','direction_id'])['station_id'].cumcount()+1
+    column_seq = ['platform_id','station_line_id', 'station_id','line_id','direction_id','station_name','lat','lon','stop_seq']
     platforms_df.to_csv('data/platforms.csv', columns=column_seq, index=False)
 
 
@@ -71,11 +73,16 @@ def construct_transfer_time(platforms):
     transfer_station_lines.to_csv('data/station_line_transfer_times.csv', columns=column_seq, index=False)
 
 
-
+# def generate_lines(platforms):
+#     all_lines_dir = platforms[['line_id','direction']]
+#     a=1
 
 if __name__ == "__main__":
+    ##################
     raw_data = pd.read_csv('data/testSubwayStation.csv')
     generate_platforms(raw_data)
     generate_station_pair_travel_time(raw_data)
+    #################
     platforms = pd.read_csv('data/platforms.csv')
     construct_transfer_time(platforms)
+    #################
