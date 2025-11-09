@@ -156,33 +156,26 @@ def generate_all_path_segments():
     for i, src in enumerate(nodes):
         lengths, paths = nx.single_source_dijkstra(G, src, weight='weight')
         for dst, path in paths.items():
-            path_id = 1
             if dst == src:
                 continue
             cum_time = 0.0
             for j in range(len(path) - 1):
                 f = path[j]
                 t = path[j+1]
-                line_id_from = int(f.split('_')[1])
                 seg_w = float(G[f][t]['weight'])
                 cum_time += seg_w
                 dir_code = segment_direction_code(f, t, platform_dir_map)
                 out_rows.append({
                     'from_station': f,
                     'to_station': t,
-                    'line_id': line_id_from,
-                    'path_id': path_id,
                     'cumulated_travel_time': cum_time,
-                    'direction_id': int(dir_code),
+                    'direction': int(dir_code),
                     'origin': src,
                     'destination': dst
                 })
 
-    out_cols = ['origin','destination','path_id','line_id','direction_id','from_station','to_station','cumulated_travel_time']
+    out_cols = ['from_station','to_station','cumulated_travel_time','direction','origin','destination']
     out_df = pd.DataFrame(out_rows, columns=out_cols)
-
-
-
     out_df.to_csv('data/paths.csv', index=False)
 
 
