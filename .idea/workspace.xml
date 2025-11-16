@@ -5,19 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="813134bd-60b4-4e9d-ba7c-e6bc058f704d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/B01_simulation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/Transit-Inflow-Control.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Transit-Inflow-Control.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/A01_generate_basic_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/A01_generate_basic_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/A02_generate_paths.py" beforeDir="false" afterPath="$PROJECT_DIR$/A02_generate_paths.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/A03_generate_events.py" beforeDir="false" afterPath="$PROJECT_DIR$/A03_generate_events.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/B01_simulatoin.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/_constant.py" beforeDir="false" afterPath="$PROJECT_DIR$/_constant.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/events.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/events.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/final_platform_queues.csv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/testhomework2.py" beforeDir="false" afterPath="$PROJECT_DIR$/testhomework2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/B01_simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/B01_simulation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/paths.csv" beforeDir="false" afterPath="$PROJECT_DIR$/data/paths.csv" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,8 +37,9 @@
     "Python.A02_generate_paths.executor": "Run",
     "Python.A03_generate_events.executor": "Run",
     "Python.A04_generate_demand_data.executor": "Run",
-    "Python.B01_simulation (1).executor": "Debug",
+    "Python.B01_simulation (1).executor": "Run",
     "Python.B01_simulatoin.executor": "Debug",
+    "Python.B02_simulation_output.executor": "Run",
     "Python.testhomework2.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
@@ -68,28 +63,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/A02_generate_paths.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="A03_generate_events" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="Transit-Inflow-Control" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/A03_generate_events.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -164,13 +137,35 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="B02_simulation_output" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Transit-Inflow-Control" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/B02_simulation_output.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Python.B01_simulation (1)" />
+        <item itemvalue="Python.A02_generate_paths" />
+        <item itemvalue="Python.B02_simulation_output" />
         <item itemvalue="Python.B01_simulation" />
         <item itemvalue="Python.A04_generate_demand_data" />
-        <item itemvalue="Python.A03_generate_events" />
-        <item itemvalue="Python.A02_generate_paths" />
       </list>
     </recent_temporary>
   </component>

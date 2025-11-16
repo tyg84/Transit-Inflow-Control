@@ -167,18 +167,39 @@ def generate_all_path_segments():
                 seg_w = float(G[f][t]['weight'])
                 cum_time += seg_w
                 dir_code = segment_direction_code(f, t, platform_dir_map)
+                if dir_code == 2:
+                    # transfer station
+                    if j > 0 and j < len(path)-2:
+                        from_direction_id = segment_direction_code(path[j-1], path[j], platform_dir_map)
+                        to_direction_id = segment_direction_code(path[j+1], path[j+2], platform_dir_map)
+                    elif j == 0 and j < len(path)-2:
+                        # first link is transfer link
+                        to_direction_id = segment_direction_code(path[j+1], path[j+2], platform_dir_map)
+                        from_direction_id = to_direction_id
+                    elif j == len(path)-2:
+                        # last link is transfer link
+                        from_direction_id = segment_direction_code(path[j-1], path[j], platform_dir_map)
+                        to_direction_id = from_direction_id
+                    else:
+                        raise Exception("Error in defining direction id")
+
+                else:
+                    from_direction_id = int(dir_code)
+                    to_direction_id = int(dir_code)
                 out_rows.append({
                     'from_station': f,
                     'to_station': t,
                     'line_id': line_id_from,
                     'path_id': path_id,
                     'cumulated_travel_time': cum_time,
-                    'direction_id': int(dir_code),
+                    'from_direction_id': from_direction_id,
+                    'to_direction_id': to_direction_id,
+                    'if_transfer': 1 if dir_code == 2 else 0,
                     'origin': src,
                     'destination': dst
                 })
 
-    out_cols = ['origin','destination','path_id','line_id','direction_id','from_station','to_station','cumulated_travel_time']
+    out_cols = ['origin','destination','path_id','line_id','from_direction_id', 'to_direction_id', 'if_transfer','from_station','to_station','cumulated_travel_time']
     out_df = pd.DataFrame(out_rows, columns=out_cols)
 
 
