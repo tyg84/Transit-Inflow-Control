@@ -37,7 +37,7 @@ class Platform:
 
 
 class Passenger:
-    def __init__(self, origin_station_id, destination_station_id, passenger_id):
+    def __init__(self, origin_station_id, destination_station_id, passenger_id, origin_platform_id):
         self.origin_station_id = origin_station_id
         self.destination_station_id = destination_station_id
         self.passenger_id = passenger_id
@@ -47,9 +47,15 @@ class Passenger:
         self.transfer_from_platform_list = pax_path_dict[passenger_id]['from_transfer_platforms'].split(',')
         self.transfer_to_platform_list = pax_path_dict[passenger_id]['to_transfer_platforms'].split(',')
         self.origin_line_id = int(pax_path_dict[passenger_id]['origin'].split('_')[1])
-        self.trajectory = {'trajectory_type': [], 'trajectory_time': []}
+        self.trajectory = {
+            'trajectory_type': [],
+            'trajectory_time': [],
+            'trajectory_platform': []}
         self.tap_in_timestamp = None
-        self.left_behind_times = {}
+        self.left_behind_times = {origin_platform_id: 0}
+        for bd_platform in self.transfer_to_platform_list:
+            self.left_behind_times[bd_platform] = 0
+
 
 
 def generate_event_list(events):
@@ -68,23 +74,47 @@ def offload_passengers(event):
     if len(train.passenger_list) == 0:
         return
     platform = all_platforms[event.platform_id]
+
+    all_logs['train_load_log'].append({
+        'train_id': train.train_id,
+        'timestamp': event.event_timestamp,
+        'train_load_type': 'Arrival',
+        'train_load': len(train.passenger_list),
+        'platform_id': platform.platform_id,
+    })
+
+    all_logs['platform_queue_log'].append({
+        'platform_id': platform.platform_id,
+        'timestamp': event.event_timestamp,
+        'queue_length': len(platform.passenger_list),
+        'queue_length_type': 'When Arrival',
+        'train_id': train.train_id,
+    })
+
     remained_passengers = []
     for p in train.passenger_list:
         if len(p.transfer_from_platform_list) and platform.platform_id == p.transfer_from_platform_list[0]:
             # transfer
+            p.trajectory['trajectory_platform'].append(platform.platform_id)
             p.trajectory['trajectory_type'].append('Transfer')
             p.trajectory['trajectory_time'].append(event.event_timestamp + _constant.DEFAULT_EXIT_WALKING_TIME)
             # next transfer platform
-            next_platform_id = p.transfer_from_platform_list.pop(0)
-            all_platforms[next_platform_id].passenger_list.append(p)
-        elif p.destination_station_id == platform.platform_station_line_id:
+            p.transfer_from_platform_list.pop(0)
+            next_platform_id = p.transfer_to_platform_list.pop(0)
+            next_platform = all_platforms[next_platform_id]
+            next_platform.passenger_list.append(p)
+        elif p.destination == platform.platform_station_line_id:
             # leaving passenger
+            p.trajectory['trajectory_platform'].append(platform.platform_id)
             p.trajectory['trajectory_type'].append('Exit')
             p.trajectory['trajectory_time'].append(event.event_timestamp + _constant.DEFAULT_EXIT_WALKING_TIME)
             # log passenger travel time
-            trajectory_log['passenger_id'] += [p.passenger_id] * len(p.trajectory['trajectory_type'])
-            trajectory_log['trajectory_type'] += p.trajectory['trajectory_type']
-            trajectory_log['trajectory_time'] += p.trajectory['trajectory_time']
+            all_logs['trajectory_log']['passenger_id'] += [p.passenger_id] * len(p.trajectory['trajectory_type'])
+            all_logs['trajectory_log']['trajectory_type'] += p.trajectory['trajectory_type']
+            all_logs['trajectory_log']['trajectory_time'] += p.trajectory['trajectory_time']
+            all_logs['trajectory_log']['trajectory_platform'] += p.trajectory['trajectory_platform']
+
+
         else:
             remained_passengers.append(p)
 
@@ -94,40 +124,53 @@ def offload_passengers(event):
 def onboard_passengers(event):
     train = all_trains[event.train_id]
     platform = all_platforms[event.platform_id]
+
+    all_logs['platform_queue_log'].append({
+        'platform_id': platform.platform_id,
+        'timestamp': event.event_timestamp,
+        'queue_length': len(platform.passenger_list),
+        'queue_length_type': 'Before Onboard',
+        'train_id': train.train_id,
+    })
+
+
     available_space = train.capacity - len(train.passenger_list)
     num_onboard_pax = min(available_space, len(platform.passenger_list))
     to_board_passengers = platform.passenger_list[:num_onboard_pax]
     left_behind_passengers = platform.passenger_list[num_onboard_pax:]
-
     for p in to_board_passengers:
         p.trajectory['trajectory_type'].append('Boarding')
         p.trajectory['trajectory_time'].append(event.event_timestamp)
-        # passenger_travel_log.append({
-        #     'passenger_id': p.passenger_id,
-        #     'origin_station_id': p.origin_station_id,
-        #     'destination_station_id': p.destination_station_id,
-        #     'boarding_time': event.event_timestamp,
-        #     'alighting_time': None,
-        #     'total_travel_time': None
-        # })
+        p.trajectory['trajectory_platform'].append(platform.platform_id)
+        all_logs['left_behind_log'].append({
+            'passenger_id': p.passenger_id,
+            'boarding_platform': platform.platform_id,
+            'left_behind_times': p.left_behind_times[platform.platform_id],
+        })
+
 
     for p in left_behind_passengers:
-        pass
+        p.left_behind_times[platform.platform_id] += 1
 
     train.passenger_list.extend(to_board_passengers)
     platform.passenger_list = platform.passenger_list[available_space:]
 
     # Log train load and platform queue
-    # train_load_log.append({
-    #     'train_id': train.train_id,
-    #     'timestamp': event.event_timestamp,
-    #     'train_load': len(train.passenger_list)
-    # })
-    # platform_queue_log.append({
-    #     'platform_id': platform.platform_id,
-    #     'timestamp': event.event_timestamp,
-    #     'queue_length': len(platform.passenger_list)
-    # })
+    all_logs['train_load_log'].append({
+        'train_id': train.train_id,
+        'timestamp': event.event_timestamp,
+        'train_load_type': 'Departure',
+        'train_load': len(train.passenger_list),
+        'platform_id': platform.platform_id,
+    })
+
+    all_logs['platform_queue_log'].append({
+        'platform_id': platform.platform_id,
+        'timestamp': event.event_timestamp,
+        'queue_length': len(platform.passenger_list),
+        'queue_length_type': 'After Onboard',
+        'train_id': train.train_id,
+    })
 
 
 def add_new_passengers_to_platform(event):
@@ -157,7 +200,7 @@ def add_new_passengers_to_platform(event):
             pid = int(pid_list[k])
             dest = int(dest_list[k])
             tap_ts = int(tap_list[k])
-            p = Passenger(station_id, dest, pid)
+            p = Passenger(station_id, dest, pid, platform.platform_id)
             p.tap_in_timestamp = tap_ts
             passenger_objects[pid] = p
             platform.add_passenger(p)
@@ -204,13 +247,14 @@ def initialize_trains(event):
         all_trains[event.train_id] = Train(event.train_id, event.line_id, event.direction_id)
 
 
-def initialize_platforms(event):
-    if event.platform_id not in all_platforms:
-        all_platforms[event.platform_id] = Platform(event.platform_id, event.line_id, event.direction_id)
+def initialize_platforms(event_list):
+    for event in event_list:
+        if event.platform_id not in all_platforms:
+            all_platforms[event.platform_id] = Platform(event.platform_id, event.line_id, event.direction_id)
 
 
 def simulation_main(event_list):
-
+    initialize_platforms(event_list)
     s_time = time.time()
     for event_id, event in enumerate(event_list):
         if event_id > 0 and event_id % 1000 == 0:
@@ -219,7 +263,7 @@ def simulation_main(event_list):
             estimate_total_finish_time = len(event_list) * (total_spent_time / event_id)
             print(f'estimate_total_finish_time: {round(estimate_total_finish_time)} sec')
         initialize_trains(event)
-        initialize_platforms(event)
+
 
         if event.event_type == 'Arrival':
             offload_passengers(event)
@@ -272,6 +316,21 @@ def assign_passenger_path(passenger_df, path_df):
     return pax_path_dict
 
 
+def save_all_logs():
+    trajectory_log_df = pd.DataFrame(all_logs['trajectory_log'])
+    trajectory_log_df.to_csv('output/trajectory_log.csv', index=False)
+
+    train_log_df = pd.DataFrame(all_logs['train_load_log'])
+    train_log_df.to_csv('output/train_log.csv', index=False)
+
+    queue_length_log_df = pd.DataFrame(all_logs['platform_queue_log'])
+    queue_length_log_df.to_csv('output/platform_queue_log.csv', index=False)
+
+
+    left_behind_log_df = pd.DataFrame(all_logs['left_behind_log'])
+    left_behind_log_df.to_csv('output/left_behind_log.csv', index=False)
+
+
 #######################
 # MAIN
 #######################
@@ -281,10 +340,17 @@ if __name__ == '__main__':
     # platform_queue_log = []  # At each event: platform_id, timestamp, queue_length
     # left_behind_log = []  # Track passengers who could not board train
     # passenger_travel_log = []  # For each passenger: id, origin, destination, boarding_time, alighting_time, total_travel_time
-    trajectory_log = {'passenger_id': [], 'trajectory_type': [], 'trajectory_time': []}
+
+    all_logs = {
+        'trajectory_log': {'passenger_id': [], 'trajectory_type': [], 'trajectory_time': [], 'trajectory_platform': []},
+        'train_load_log': [],
+        'platform_queue_log': [],
+        'left_behind_log': []
+    }
+
 
     SIMULATION_START_TIMESTAMP = 5 * 3600
-    SIMULATION_END_TIMESTAMP = 24 * 3600
+    SIMULATION_END_TIMESTAMP = 10 * 3600
 
     train_capacity_df = pd.read_csv('data/train_capacity.csv')
     train_capacity_dict = train_capacity_df.set_index(['line_id', 'direction_id'])['train_capacity'].to_dict()
@@ -314,3 +380,5 @@ if __name__ == '__main__':
     event_list = generate_event_list(events)
     print('Finish generating event list...')
     simulation_main(event_list)
+    print('Finish simulating event list, start to save logs...')
+    save_all_logs()
