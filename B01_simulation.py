@@ -2,6 +2,13 @@ import pandas as pd
 import numpy as np
 import _constant
 import copy
+import os
+
+train_load_log = []           # Each departure: train_id, timestamp, load
+platform_queue_log = []       # At each event: platform_id, timestamp, queue_length
+left_behind_log = []          # Track passengers who could not board train
+passenger_travel_log = []     # For each passenger: id, origin, destination, boarding_time, alighting_time, total_travel_time
+
 
 class Event:
     def __init__(self, line_id, direction_id, station_id, platform_id, train_id, event_timestamp, event_type):
@@ -21,7 +28,6 @@ class Train:
         self.passenger_list = []
 
 
-
 class Platform:
     def __init__(self, platform_id, line_id, direction_id):
         self.platform_id = platform_id
@@ -34,24 +40,20 @@ class Platform:
     def add_passenger(self, passenger):
         self.passenger_list.append(passenger)
 
-class Passenger:
 
+class Passenger:
     def __init__(self, origin_station_id, destination_station_id, passenger_id):
         self.origin_station_id = origin_station_id
         self.destination_station_id = destination_station_id
+        self.passenger_id = passenger_id
         self.origin = pax_path_dict[passenger_id]['origin']
         self.destination = pax_path_dict[passenger_id]['destination']
-        self.passenger_id = passenger_id
         self.path_id = pax_path_dict[passenger_id]['path_id']
         self.transfer_from_station_list = pax_path_dict[passenger_id]['from_transfer_stations'].split(',')
         self.transfer_to_station_list = pax_path_dict[passenger_id]['to_transfer_stations'].split(',')
         self.origin_line_id = int(pax_path_dict[passenger_id]['origin'].split('_')[1])
         self.trajectory = {'trajectory_type': [], 'trajectory_time': []}
-
-
-
-
-
+        self.tap_in_timestamp = None
 
 
 def generate_event_list(events):
@@ -66,93 +68,166 @@ def generate_event_list(events):
 
 
 def offload_passengers(event):
-    ### offload passenger from the train if this is a transfer station or destination
-    ## offload: move them out of the train, put to next boarding platform if transfer (event_time + transfer walk time),
-    # or delete them out of the system when finish the trip record exit time (event time + walk time out).
     train = all_trains[event.train_id]
     if len(train.passenger_list) == 0:
         return
     platform = all_platforms[event.platform_id]
-
     remained_passengers = []
 
     for p in train.passenger_list:
         if len(p.transfer_from_station_list) and platform.platform_station_line_id in p.transfer_from_station_list:
-            # Transfer
+            # transfer
             p.trajectory['trajectory_type'].append('Transfer')
             p.trajectory['trajectory_time'].append(event.event_timestamp + _constant.DEFAULT_EXIT_WALKING_TIME)
-            # add passenger to new platforms
-            # FINSH THIS PART
 
+            # next transfer platform
+            for next_station_line in p.transfer_to_station_list:
+                for plat_id, plat_obj in all_platforms.items():
+                    if plat_obj.platform_station_line_id == next_station_line:
+                        plat_obj.add_passenger(p)
         elif p.destination_station_id == platform.platform_station_line_id:
+            # leaving passenger
             p.trajectory['trajectory_type'].append('Exit')
             p.trajectory['trajectory_time'].append(event.event_timestamp + _constant.DEFAULT_EXIT_WALKING_TIME)
+            # log passenger travel time
+            passenger_travel_log.append({
+                'passenger_id': p.passenger_id,
+                'origin_station_id': p.origin_station_id,
+                'destination_station_id': p.destination_station_id,
+                'boarding_time': p.trajectory['trajectory_time'][0] if len(p.trajectory['trajectory_time']) > 0 else None,
+                'alighting_time': event.event_timestamp + _constant.DEFAULT_EXIT_WALKING_TIME,
+                'total_travel_time': (event.event_timestamp + _constant.DEFAULT_EXIT_WALKING_TIME) - (p.trajectory['trajectory_time'][0] if len(p.trajectory['trajectory_time']) > 0 else event.event_timestamp)
+            })
         else:
             remained_passengers.append(p)
 
     train.passenger_list = copy.deepcopy(remained_passengers)
-    return
 
 
 def onboard_passengers(event):
-    ### put new passengers from entry gate to the platform. sort by arrival-at-platform time
-    # onboard passenger to the train up to the capacity.
-    ## update the platform queue.
     train = all_trains[event.train_id]
     platform = all_platforms[event.platform_id]
     available_space = train.capacity - len(train.passenger_list)
     if available_space == 0:
+        for p in platform.passenger_list:
+            left_behind_log.append({
+                'train_id': train.train_id,
+                'platform_id': platform.platform_id,
+                'timestamp': event.event_timestamp,
+                'passenger_id': p.passenger_id
+            })
         return
+
     to_board_passengers = platform.passenger_list[:available_space]
     for p in to_board_passengers:
         p.trajectory['trajectory_type'].append('Boarding')
         p.trajectory['trajectory_time'].append(event.event_timestamp)
-    ## add pax to train
+        passenger_travel_log.append({
+            'passenger_id': p.passenger_id,
+            'origin_station_id': p.origin_station_id,
+            'destination_station_id': p.destination_station_id,
+            'boarding_time': event.event_timestamp,
+            'alighting_time': None,
+            'total_travel_time': None
+        })
+
     train.passenger_list.extend(to_board_passengers)
-    ## delete pax from platform
     platform.passenger_list = platform.passenger_list[available_space:]
-    return
+
+    # Log train load and platform queue
+    train_load_log.append({
+        'train_id': train.train_id,
+        'timestamp': event.event_timestamp,
+        'train_load': len(train.passenger_list)
+    })
+    platform_queue_log.append({
+        'platform_id': platform.platform_id,
+        'timestamp': event.event_timestamp,
+        'queue_length': len(platform.passenger_list)
+    })
 
 
 def add_new_passengers_to_platform(event):
     platform_id = event.platform_id
     platform = all_platforms[platform_id]
+
     start_time = platform.last_train_departure_time
     end_time = event.event_timestamp
     station_id = event.station_id
-    tap_in_time_list = np.array(all_passengers[station_id]['tap_in_timestamp'])
-    i = tap_in_time_list.searchsorted(start_time, side="left")
-    j = tap_in_time_list.searchsorted(end_time, side="left")
-    pax_id_list = all_passengers[station_id]['passenger_id'][i:j]
-    tap_int_time_list = all_passengers[station_id]['tap_in_timestamp'][i:j]
-    des_list = all_passengers[station_id]['destination_station_id'][i:j]
 
-    for passenger_id, origin_station_id, destination_station_id in zip(pax_id_list, tap_int_time_list, des_list):
-        all_passengers[passenger_id] = Passenger(origin_station_id, destination_station_id, passenger_id)
-        platform.add_passenger(all_passengers[passenger_id])
-    # drop all passengers before i to accelerate future search
-    all_passengers[station_id]['passenger_id'] = all_passengers[station_id]['passenger_id'][i:]
-    all_passengers[station_id]['tap_in_timestamp'] = all_passengers[station_id]['tap_in_timestamp'][i:]
-    all_passengers[station_id]['destination_station_id'] = all_passengers[station_id]['destination_station_id'][i:]
+    pax_group = grouped_passengers.get(station_id, None)
+    if pax_group is None:
+        return
+
+    if isinstance(pax_group, dict) and 'passenger_id' in pax_group:
+        pid_list = pax_group['passenger_id']
+        tap_list = pax_group['tap_in_timestamp']
+        dest_list = pax_group['destination_station_id']
+
+        tap_arr = np.array(tap_list)
+        i = int(tap_arr.searchsorted(start_time, side="left"))
+        j = int(tap_arr.searchsorted(end_time, side="left"))
+        if i >= j:
+            return
+
+        for k in range(i, j):
+            pid = int(pid_list[k])
+            dest = int(dest_list[k])
+            tap_ts = int(tap_list[k])
+            p = Passenger(station_id, dest, pid)
+            p.tap_in_timestamp = tap_ts
+            passenger_objects[pid] = p
+            platform.add_passenger(p)
+
+        pax_group['passenger_id'] = pid_list[j:]
+        pax_group['tap_in_timestamp'] = tap_list[j:]
+        pax_group['destination_station_id'] = dest_list[j:]
+        grouped_passengers[station_id] = pax_group
+        return
+
+    if isinstance(pax_group, list):
+        remaining = []
+        for entry in pax_group:
+            if isinstance(entry, dict):
+                try:
+                    pid = int(entry['passenger_id'])
+                    tap_ts = int(entry['tap_in_timestamp'])
+                    dest = int(entry['destination_station_id'])
+                except Exception:
+                    remaining.append(entry)
+                    continue
+                if start_time <= tap_ts < end_time:
+                    p = Passenger(station_id, dest, pid)
+                    p.tap_in_timestamp = tap_ts
+                    passenger_objects[pid] = p
+                    platform.add_passenger(p)
+                else:
+                    remaining.append(entry)
+            elif hasattr(entry, 'tap_in_timestamp'):
+                if start_time <= entry.tap_in_timestamp < end_time:
+                    pid = int(entry.passenger_id)
+                    passenger_objects[pid] = entry
+                    platform.add_passenger(entry)
+                else:
+                    remaining.append(entry)
+            else:
+                remaining.append(entry)
+        grouped_passengers[station_id] = remaining
+        return
 
 
 def initialize_trains(event):
     if event.train_id not in all_trains:
         all_trains[event.train_id] = Train(event.train_id, event.line_id, event.direction_id)
-    return
+
 
 def initialize_platforms(event):
     if event.platform_id not in all_platforms:
         all_platforms[event.platform_id] = Platform(event.platform_id, event.line_id, event.direction_id)
-    return
-
-
 
 
 def simulation_main(event_list):
-
     for event in event_list:
-        print(f'Event: {event.event_timestamp}')
         initialize_trains(event)
         initialize_platforms(event)
 
@@ -161,6 +236,14 @@ def simulation_main(event_list):
         elif event.event_type == 'Departure':
             add_new_passengers_to_platform(event)
             onboard_passengers(event)
+
+    # Save output metrics
+    os.makedirs('data', exist_ok=True)
+    pd.DataFrame(train_load_log).to_csv('data/train_load.csv', index=False)
+    pd.DataFrame(platform_queue_log).to_csv('data/platform_queue.csv', index=False)
+    pd.DataFrame(left_behind_log).to_csv('data/left_behind.csv', index=False)
+    pd.DataFrame(passenger_travel_log).to_csv('data/passenger_travel_times.csv', index=False)
+    print("Success")
 
 
 def process_passenger_group_by_origin(passenger_df):
@@ -172,59 +255,61 @@ def process_passenger_group_by_origin(passenger_df):
     )
     return all_passengers
 
+
 def assign_passenger_path(passenger_df, path_df):
     path_df['origin_station_id'] = path_df['origin'].str.split('_').str[0].astype('int')
     path_df['destination_station_id'] = path_df['destination'].str.split('_').str[0].astype('int')
-    #
 
     unique_path = path_df.groupby(['origin_station_id', 'destination_station_id', 'origin', 'destination', 'path_id']).agg(
         total_travel_time=('cumulated_travel_time', 'last'),
         from_transfer_stations=('from_station', lambda x: ",".join(x[path_df.loc[x.index, 'direction_id'].eq(2)].unique())),
-        to_transfer_stations=('to_station',
-                                lambda x: ",".join(x[path_df.loc[x.index, 'direction_id'].eq(2)].unique()))
+        to_transfer_stations=('to_station', lambda x: ",".join(x[path_df.loc[x.index, 'direction_id'].eq(2)].unique()))
     ).reset_index()
 
-    # # get total travel time
-    # unique_path = path_df.groupby(['origin','destination', 'path_id']).last().reset_index()
-    # # sort travel time
     unique_path = unique_path.sort_values(['total_travel_time'], ascending=True)
-    unique_path = unique_path.groupby(['origin_station_id','destination_station_id', 'path_id']).first().reset_index()
+    unique_path = unique_path.groupby(['origin_station_id', 'destination_station_id', 'path_id']).first().reset_index()
+
     passenger_df_path = passenger_df.merge(unique_path, on=['origin_station_id', 'destination_station_id'])
-    # check path num
     check_path_num = passenger_df_path.groupby(['passenger_id'])['path_id'].count().reset_index()
-    check_path_num = check_path_num.loc[check_path_num['path_id']>1]
+    check_path_num = check_path_num.loc[check_path_num['path_id'] > 1]
     assert len(check_path_num) == 0
 
-    pax_path_dict = passenger_df_path[[
-        'passenger_id','origin','destination','path_id','from_transfer_stations', 'to_transfer_stations'
-    ]].set_index('passenger_id').to_dict(orient='index')
+    pax_path_dict = passenger_df_path[['passenger_id','origin','destination','path_id','from_transfer_stations','to_transfer_stations']].set_index('passenger_id').to_dict(orient='index')
 
     return pax_path_dict
 
 
+#######################
+# MAIN
+#######################
 
 if __name__ == '__main__':
     SIMULATION_START_TIMESTAMP = 5 * 3600
     SIMULATION_END_TIMESTAMP = 24 * 3600
-    ## generate demand first.
+
     train_capacity_df = pd.read_csv('data/train_capacity.csv')
     train_capacity_dict = train_capacity_df.set_index(['line_id', 'direction_id'])['train_capacity'].to_dict()
+
     passenger_df = pd.read_csv('data/individual_demands.csv')
     passenger_df = passenger_df.loc[
         (passenger_df['tap_in_timestamp'] > SIMULATION_START_TIMESTAMP) &
         (passenger_df['tap_in_timestamp'] < SIMULATION_END_TIMESTAMP)
     ]
-    all_passengers = process_passenger_group_by_origin(passenger_df)
+
+    grouped_passengers = process_passenger_group_by_origin(passenger_df)
+    passenger_objects = {}
+
     path_df = pd.read_csv('data/paths.csv')
     pax_path_dict = assign_passenger_path(passenger_df, path_df)
 
     all_trains = {}
-    train_capacity = {}
     all_platforms = {}
+
     events = pd.read_csv('data/events.csv')
     events = events.loc[
         (events['event_timestamp'] > SIMULATION_START_TIMESTAMP) &
         (events['event_timestamp'] < SIMULATION_END_TIMESTAMP)
     ]
+
     event_list = generate_event_list(events)
     simulation_main(event_list)
