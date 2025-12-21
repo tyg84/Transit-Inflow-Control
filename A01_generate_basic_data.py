@@ -1,5 +1,5 @@
 import pandas as pd
-
+import numpy as np
 
 def generate_platforms(raw_data):
     all_lines = set(raw_data['Line'])
@@ -12,6 +12,7 @@ def generate_platforms(raw_data):
             line_df = line_df.sort_values(by='station time', ascending=ascending)
             temp_platform = line_df[['Line', 'station id', 'Station name', 'Lat', 'Long']].copy()
             temp_platform['direction'] = direction
+            temp_platform['stop_seq'] = np.arange(1, len(temp_platform)+1)
             platforms_df_list.append(temp_platform)
 
     platforms_df = pd.concat(platforms_df_list)
@@ -24,8 +25,7 @@ def generate_platforms(raw_data):
     platforms_df['platform_id'] = platforms_df['station_id'].astype('int').astype('str') + '_' + platforms_df['line_id'].astype('int').astype('str') + '_' + platforms_df['direction_id'].astype('int').astype('str')
     platforms_df['station_line_id'] = platforms_df['station_id'].astype('int').astype('str') + '_' + platforms_df[
         'line_id'].astype('int').astype('str')
-    platforms_df = platforms_df.sort_values(['line_id','direction_id','station_id','station_id'])
-    platforms_df['stop_seq'] = platforms_df.groupby(['line_id','direction_id'])['station_id'].cumcount()+1
+    platforms_df = platforms_df.sort_values(['line_id','direction_id','stop_seq'])
     column_seq = ['platform_id','station_line_id', 'station_id','line_id','direction_id','station_name','lat','lon','stop_seq']
     platforms_df.to_csv('data/platforms.csv', columns=column_seq, index=False)
 
@@ -49,10 +49,12 @@ def generate_station_pair_travel_time(raw_data):
             line_df['to_platform_id'] = line_df['new_station'].astype('int').astype('str') + '_' + str(int(line)) + '_'+ str(int(direction))
             line_df['from_station_line_id'] = line_df['station id'].astype('int').astype('str') + '_' + str(int(line))
             line_df['to_station_line_id'] = line_df['new_station'].astype('int').astype('str') + '_' + str(int(line))
+            line_df['from_platform_seq'] = np.arange(1, len(line_df)+1)
+            line_df['to_platform_seq'] = np.arange(2, len(line_df) + 2)
             travel_times_df_list.append(line_df)
 
     travel_times_df = pd.concat(travel_times_df_list)
-    column_seq = ['from_platform_id','to_platform_id','travel_time']
+    column_seq = ['from_platform_id','to_platform_id','from_platform_seq','to_platform_seq','travel_time']
     travel_times_df.to_csv('data/platform_travel_times.csv', columns=column_seq, index=False)
 
 

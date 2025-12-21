@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from itertools import product
-
+import _constant
 
 # Define time-of-day multipliers
 def time_multiplier(t):
@@ -18,14 +18,14 @@ def time_multiplier(t):
     else:  # 22:00–05:00
         return 0.2
 
-def generate_demand_data(platforms):
+def generate_demand_data(platforms, random_seed):
     # Load station list
     stations = sorted(list(set(platforms['station_id'])))
 
     # 15-minute intervals (96 per day)
     interval_seconds = 15 * 60
     intervals = [(t, t + interval_seconds) for t in range(0, 86400, interval_seconds)]
-    base_rate = 2  # average OD passengers per 15 min outside peaks — change as needed
+    base_rate = _constant.DEMAND_RATE  # average OD passengers per 15 min outside peaks — change as needed
     rows = []
     for origin, dest in product(stations, stations):
         if origin == dest:
@@ -33,6 +33,8 @@ def generate_demand_data(platforms):
 
         for start, end in intervals:
             multiplier = time_multiplier(start)
+            random_seed += 1
+            np.random.seed(random_seed)
             num_passengers = np.random.poisson(base_rate * multiplier)
 
             if num_passengers > 0:
@@ -46,7 +48,7 @@ def generate_demand_data(platforms):
     df.to_csv("data/demands.csv", index=False)
 
 
-def generate_individual_tap_in_time(demands):
+def generate_individual_tap_in_time(demands, random_seed):
 
     records = []
     pid = 1
@@ -58,6 +60,8 @@ def generate_individual_tap_in_time(demands):
         end = row["tap_in_time_end"]
         num = row["num_passengers"]
         # assign timestamps uniformly within the interval
+        random_seed += 1
+        np.random.seed(random_seed)
         timestamps = np.random.randint(start, end, size=num)
         for t in timestamps:
             records.append([pid, origin, dest, t])
@@ -73,8 +77,8 @@ def generate_individual_tap_in_time(demands):
 if __name__ == '__main__':
     #############
     platforms = pd.read_csv('data/platforms.csv')
-    generate_demand_data(platforms)
+    generate_demand_data(platforms, random_seed = 141)
 
     ##############
     demands = pd.read_csv('data/demands.csv')
-    generate_individual_tap_in_time(demands)
+    generate_individual_tap_in_time(demands, random_seed = 142)
