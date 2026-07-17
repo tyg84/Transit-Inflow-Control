@@ -64,17 +64,17 @@ print(paths_df.head())
 import pandas as pd
 import networkx as nx
 
-def load_edges():
-    transfer_df = pd.read_csv("data/station_line_transfer_times.csv", dtype=str)
+def load_edges(case_name):
+    transfer_df = pd.read_csv(f"data/{case_name}/station_line_transfer_times.csv", dtype=str)
     if 'travel_time' in transfer_df.columns:
         transfer_df['travel_time'] = transfer_df['travel_time'].astype(float)
     else:
         transfer_df['travel_time'] = 2.0  # fallback
 
-    travel_df = pd.read_csv("data/station_line_travel_times.csv", dtype=str)
+    travel_df = pd.read_csv(f"data/{case_name}/station_line_travel_times.csv", dtype=str)
     travel_df['travel_time'] = travel_df['travel_time'].astype(float)
 
-    platform_dir_df = pd.read_csv("data/platform_travel_times.csv", dtype=str)
+    platform_dir_df = pd.read_csv(f"data/{case_name}/platform_travel_times.csv", dtype=str)
 
     return transfer_df, travel_df, platform_dir_df
 
@@ -110,13 +110,19 @@ def build_graph(transfer_df, travel_df):
 
 def build_platform_direction_map(platform_dir_df):
     mapping = {}
+    mapping_seq = {}
     for _, r in platform_dir_df.iterrows():
         fplat_full = str(r['from_platform_id']).strip()
         tplat_full = str(r['to_platform_id']).strip()
         if '_' not in fplat_full or '_' not in tplat_full:
             continue
-        f_station_line, f_dir = fplat_full.rsplit('_', 1)
-        t_station_line, t_dir = tplat_full.rsplit('_', 1)
+        f_station_line = '_'.join(fplat_full.split('_')[:2])
+        f_dir = fplat_full.split('_')[2]
+        # f_seq = fplat_full.split('_')[3]
+        t_station_line = '_'.join(tplat_full.split('_')[:2])
+        t_dir = tplat_full.split('_')[2]
+        # t_seq = tplat_full.split('_')[3]
+
 
         try:
             dir_int = int(f_dir)
@@ -124,8 +130,11 @@ def build_platform_direction_map(platform_dir_df):
             dir_int = 0
 
         mapping[(f_station_line, t_station_line)] = dir_int
-
-    return mapping
+        # if f_seq not in mapping_seq:
+        #     mapping_seq[f_station_line] = int(f_seq)
+        # if t_seq not in mapping_seq:
+        #     mapping_seq[t_station_line] = int(t_seq)
+    return mapping, mapping_seq
 
 def segment_direction_code(f, t, platform_dir_map):
     #0, 1: out/inbound, 2: transfer
@@ -142,10 +151,10 @@ def segment_direction_code(f, t, platform_dir_map):
 
     return 0
 
-def generate_all_path_segments():
-    transfer_df, travel_df, platform_dir_df = load_edges()
+def generate_all_path_segments(case_name):
+    transfer_df, travel_df, platform_dir_df = load_edges(case_name)
     G = build_graph(transfer_df, travel_df)
-    platform_dir_map = build_platform_direction_map(platform_dir_df)
+    platform_dir_map, seq_map = build_platform_direction_map(platform_dir_df)
 
     nodes = list(G.nodes())
     if not nodes:
@@ -186,6 +195,9 @@ def generate_all_path_segments():
                 else:
                     from_direction_id = int(dir_code)
                     to_direction_id = int(dir_code)
+
+                # from_station_seq = seq_map[f]
+                # to_station_seq = seq_map[t]
                 out_rows.append({
                     'from_station': f,
                     'to_station': t,
@@ -196,7 +208,9 @@ def generate_all_path_segments():
                     'to_direction_id': to_direction_id,
                     'if_transfer': 1 if dir_code == 2 else 0,
                     'origin': src,
-                    'destination': dst
+                    'destination': dst,
+                    # 'from_station_seq': from_station_seq,
+                    # 'to_station_seq': to_station_seq,
                 })
 
     out_cols = ['origin','destination','path_id','line_id','from_direction_id', 'to_direction_id', 'if_transfer','from_station','to_station','cumulated_travel_time']
@@ -204,9 +218,11 @@ def generate_all_path_segments():
 
 
 
-    out_df.to_csv('data/paths.csv', index=False)
+    out_df.to_csv(f'data/{case_name}/paths.csv', index=False)
 
 
 if __name__ == "__main__":
-    generate_all_path_segments()
+    case_name = 'reference'
+
+    generate_all_path_segments(case_name)
     print("success")

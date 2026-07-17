@@ -68,15 +68,19 @@ def generate_events(headway, platforms, platform_travel_times):
     int_col = ['line_id','station_id','direction_id','event_timestamp']
     for col in int_col:
         all_events[col] = all_events[col].astype(int)
-    output_col = ['line_id', 'direction_id', 'train_id','station_id','platform_id','event_timestamp','event_type']
+    all_events = all_events.merge(platforms[['platform_id','stop_seq']], on=['platform_id'])
+    all_events = all_events.rename(columns={'stop_seq':'platform_seq_no'})
+    output_col = ['line_id', 'direction_id', 'train_id','station_id','platform_id','platform_seq_no','event_timestamp','event_type']
     all_events = all_events.sort_values(['line_id', 'direction_id', 'train_id','event_timestamp'])
     all_events['event_id'] = np.arange(1, len(all_events)+1)
     all_events['train_id'] = all_events['line_id'].astype('str') + '_' + all_events['direction_id'].astype('str') + '_' + all_events['train_id'].astype('str')
-    all_events.to_csv('data/events.csv', columns=['event_id'] + output_col, index=False)
+    all_events.to_csv(f'data/{case_name}/events.csv', columns=['event_id'] + output_col, index=False)
 
 
 if __name__ == '__main__':
-    platforms = pd.read_csv('data/platforms.csv')
-    headway = pd.read_csv('data/headway.csv')
-    platform_travel_times = pd.read_csv('data/platform_travel_times.csv')
+    case_name = 'reference'
+
+    platforms = pd.read_csv(f'data/{case_name}/platforms.csv')
+    headway = pd.read_csv(_constant.manual_input_path('headway.csv'))
+    platform_travel_times = pd.read_csv(f'data/{case_name}/platform_travel_times.csv')
     generate_events(headway, platforms, platform_travel_times)
