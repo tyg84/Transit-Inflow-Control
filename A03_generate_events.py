@@ -81,6 +81,6 @@ if __name__ == '__main__':
     case_name = 'reference'
 
     platforms = pd.read_csv(f'data/{case_name}/platforms.csv')
-    headway = pd.read_csv(_constant.manual_input_path('headway.csv'))
+    headway = pd.read_csv('data/manual_input_data/headway.csv')
     platform_travel_times = pd.read_csv(f'data/{case_name}/platform_travel_times.csv')
     generate_events(headway, platforms, platform_travel_times)

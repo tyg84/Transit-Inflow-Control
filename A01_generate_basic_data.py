@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import os
-import _constant
 
 
 
@@ -94,7 +93,7 @@ if __name__ == "__main__":
     case_name = 'reference'
 
     ##################
-    raw_data = pd.read_csv(_constant.manual_input_path('testSubwayStation.csv'))
+    raw_data = pd.read_csv('data/manual_input_data/testSubwayStation.csv')
     generate_platforms(raw_data, case_name)
     generate_station_pair_travel_time(raw_data, case_name)
     #################

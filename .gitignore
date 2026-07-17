@@ -4,6 +4,11 @@
 __pycache__/
 *.py[cod]
 *.log
-data/*/
+data/*
+!data/manual_input_data/
+data/manual_input_data/*
+!data/manual_input_data/testSubwayStation.csv
+!data/manual_input_data/headway.csv
+!data/manual_input_data/train_capacity.csv
 img/
 output/

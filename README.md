@@ -37,9 +37,10 @@ files under `data/<case_name>/` and write iteration logs under
 
 ## Synthetic input generation
 
-The small files `data/testSubwayStation.csv`, `data/headway.csv`, and
-`data/train_capacity.csv` specify the synthetic system patterned after the
-Shanghai Metro. Generate the reference case in this order:
+The small files `data/manual_input_data/testSubwayStation.csv`,
+`data/manual_input_data/headway.csv`, and
+`data/manual_input_data/train_capacity.csv` specify the synthetic system
+patterned after the Shanghai Metro. Generate the reference case in this order:
 
 ```bash
 python A01_generate_basic_data.py

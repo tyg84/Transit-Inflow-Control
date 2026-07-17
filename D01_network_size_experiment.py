@@ -236,7 +236,7 @@ def generate_demand_data_from_stations(stations, case_name, demand_factor, rando
 def prepare_case(case_name, selected_lines, demand_factor=1.0):
     Path(f"data/{case_name}").mkdir(parents=True, exist_ok=True)
 
-    raw = pd.read_csv(_constant.manual_input_path("testSubwayStation.csv"))
+    raw = pd.read_csv("data/manual_input_data/testSubwayStation.csv")
     raw = raw.loc[raw["Line"].isin(selected_lines)].copy()
 
     basic_data.generate_platforms(raw, case_name)
@@ -245,13 +245,13 @@ def prepare_case(case_name, selected_lines, demand_factor=1.0):
     basic_data.construct_transfer_time(platforms, case_name)
     generate_all_path_segments(case_name)
 
-    headway = pd.read_csv(_constant.manual_input_path("headway.csv"))
+    headway = pd.read_csv("data/manual_input_data/headway.csv")
     headway = headway.loc[headway["line_id"].isin(selected_lines)].copy()
     platform_travel_times = pd.read_csv(f"data/{case_name}/platform_travel_times.csv")
     event_data.case_name = case_name
     event_data.generate_events(headway, platforms, platform_travel_times)
 
-    train_capacity_df = pd.read_csv(_constant.manual_input_path("train_capacity.csv"))
+    train_capacity_df = pd.read_csv("data/manual_input_data/train_capacity.csv")
     train_capacity_df = train_capacity_df.loc[
         train_capacity_df["line_id"].isin(selected_lines)
     ].copy()
