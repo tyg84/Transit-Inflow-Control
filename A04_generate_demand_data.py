@@ -35,7 +35,7 @@ def generate_demand_data(platforms, case_name, demand_factor, random_seed):
     records = []
 
     # Load station list
-    stations = pd.read_csv(_constant.manual_input_path('testSubwayStation.csv'))
+    stations = pd.read_csv('data/manual_input_data/testSubwayStation.csv')
     stations = stations.rename(columns={'station id':'station_id'})
     for t in range(0, DAY_END, TIME_BIN):
         np.random.seed(random_seed+t)
