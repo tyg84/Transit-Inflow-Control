@@ -1,29 +1,17 @@
-import sys
 
 import pandas as pd
 import numpy as np
-import _constant
 import time
-import os
 
-from A05_generate_train_capacity import train_capacity_df
 from B01_simulation import (process_passenger_group_by_origin,
-                            assign_passenger_path, generate_event_list, save_all_logs,
-                            initialize_platforms, initialize_trains, offload_passengers,
-                            add_new_passengers_to_platform, get_num_board_passengers,
-                            onboard_passengers
+                            assign_passenger_path, generate_event_list, initialize_platforms, initialize_trains, offload_passengers,
+                            add_new_passengers_to_platform, onboard_passengers
                             )
-from collections import Counter
 from B03_control_strategies import save_all_logs_with_iteration
 
 
-from scipy.optimize import minimize, dual_annealing, differential_evolution
-from scipy.optimize import basinhopping
-from scipy.stats import qmc
+from scipy.optimize import differential_evolution
 
-from skopt import gp_minimize
-from skopt.space import Real
-from skopt.utils import use_named_args
 
 
 def simulation_with_control(event_list, train_capacity_dict,pax_path_dict, passenger_objects, all_platforms, all_trains, all_logs, iteration, control_factor_dict, grouped_passengers):
@@ -177,15 +165,8 @@ def main_calculation(case_name, Max_iteration):
         print('Finish simulating event list, start to save logs...')
         save_all_logs_with_iteration(all_logs, iteration, case_name)
         all_LBs = [all_logs['left_behind_log_temp'][pax_id]['left_behind_times'] for pax_id in all_logs['left_behind_log_temp']]
-        lb_times_num_pax = Counter(all_LBs)
         max_lb_pax_times = max(all_LBs)
-        # lb_count = lb_log_df.groupby(['left_behind_times'])
-        # new_obj = sum([(k**2) * v for k,v in lb_times_num_pax.items()])
         new_obj = max_lb_pax_times
-        #
-        # alpha = 2.0
-        # w = np.array(all_LBs)
-        # new_obj = (1 / alpha) * np.log(np.sum(np.exp(alpha * w)))
 
         return max_lb_pax_times, control_factor_dict, new_obj
 
@@ -215,31 +196,7 @@ def main_calculation(case_name, Max_iteration):
 
     objective = ObjectiveWrapper(w_max)
 
-    def bayesian_optimization(dim, x0, n_calls=50):
-
-        # Add names here
-        space = [
-            Real(0.0, 1.0, name=f"x{i}")
-            for i in range(dim)
-        ]
-
-        @use_named_args(space)
-        def skopt_objective(**params):
-            # Convert named parameters back to vector
-            x = [params[f"x{i}"] for i in range(dim)]
-            return objective(x)
-
-        result = gp_minimize(
-            skopt_objective,
-            space,
-            n_calls=n_calls,
-            random_state=42,
-            # x0=x0
-        )
-
-        return result.x, result.fun
-
-    result = differential_evolution(
+    differential_evolution(
         objective,
         bounds,
         maxiter=50,
@@ -247,10 +204,6 @@ def main_calculation(case_name, Max_iteration):
         workers=1,
         x0=control_vector_ini,
     )
-
-
-    # bayesian_optimization(dim=len(control_vector_ini), x0=control_vector_ini, n_calls=120)
-
 
 
 def select_platform_train_id(events):

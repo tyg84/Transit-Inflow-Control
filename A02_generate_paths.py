@@ -1,66 +1,3 @@
-"""
-import pandas as pd
-import networkx as nx
-
-# Sample data
-station_line_transfer_time = pd.read_csv("station_line_transfer_times.csv")
-station_line_travel_time = pd.read_csv("station_line_travel_times.csv")
-
-
-# Example input edges (bidirectional)
-edges = pd.concat([station_line_transfer_time, station_line_travel_time], ignore_index=True)
-# Example direction file
-direction = pd.read_csv("platform_travel_times.csv")
-
-# Step 1: Build undirected graph from edges
-G = nx.Graph()
-for _, row in edges.iterrows():
-    G.add_edge(row['from_station_line_id'], row['to_station_line_id'], weight=row['travel_time'])
-
-# Step 2: Compute all shortest paths (between different stations)
-results = []
-stations = list(G.nodes())
-
-for i, src in enumerate(stations):
-    src_station = src.split('_')[0]
-    for dst in stations[i+1:]:
-        dst_station = dst.split('_')[0]
-        if src_station == dst_station:
-            continue  # skip same station id
-
-        try:
-            length = nx.shortest_path_length(G, src, dst, weight='weight')
-            results.append({
-                'from_station_line_id': src,
-                'to_station_line_id': dst,
-                'cumulated_travel_time': length
-            })
-        except nx.NetworkXNoPath:
-            continue  # skip disconnected nodes
-
-paths_df = pd.DataFrame(results)
-
-# Step 3: Add direction column by checking if path exists in direction df
-# Build a quick lookup
-directed_edges = set(zip(direction['from_platform_id'].str[:-2], direction['to_platform_id'].str[:-2]))
-
-def get_direction(row):
-    f, t = row['from_station_line_id'], row['to_station_line_id']
-    if (f, t) in directed_edges:
-        return 'forward'
-    elif (t, f) in directed_edges:
-        return 'backward'
-    else:
-        return 'unknown'
-
-paths_df['direction'] = paths_df.apply(get_direction, axis=1)
-
-# Step 4: Save to CSV
-paths_df.to_csv('paths.csv', index=False)
-
-print(paths_df.head())
-"""
-
 import pandas as pd
 import networkx as nx
 
@@ -110,7 +47,6 @@ def build_graph(transfer_df, travel_df):
 
 def build_platform_direction_map(platform_dir_df):
     mapping = {}
-    mapping_seq = {}
     for _, r in platform_dir_df.iterrows():
         fplat_full = str(r['from_platform_id']).strip()
         tplat_full = str(r['to_platform_id']).strip()
@@ -118,11 +54,7 @@ def build_platform_direction_map(platform_dir_df):
             continue
         f_station_line = '_'.join(fplat_full.split('_')[:2])
         f_dir = fplat_full.split('_')[2]
-        # f_seq = fplat_full.split('_')[3]
         t_station_line = '_'.join(tplat_full.split('_')[:2])
-        t_dir = tplat_full.split('_')[2]
-        # t_seq = tplat_full.split('_')[3]
-
 
         try:
             dir_int = int(f_dir)
@@ -130,11 +62,7 @@ def build_platform_direction_map(platform_dir_df):
             dir_int = 0
 
         mapping[(f_station_line, t_station_line)] = dir_int
-        # if f_seq not in mapping_seq:
-        #     mapping_seq[f_station_line] = int(f_seq)
-        # if t_seq not in mapping_seq:
-        #     mapping_seq[t_station_line] = int(t_seq)
-    return mapping, mapping_seq
+    return mapping
 
 def segment_direction_code(f, t, platform_dir_map):
     #0, 1: out/inbound, 2: transfer
@@ -154,7 +82,7 @@ def segment_direction_code(f, t, platform_dir_map):
 def generate_all_path_segments(case_name):
     transfer_df, travel_df, platform_dir_df = load_edges(case_name)
     G = build_graph(transfer_df, travel_df)
-    platform_dir_map, seq_map = build_platform_direction_map(platform_dir_df)
+    platform_dir_map = build_platform_direction_map(platform_dir_df)
 
     nodes = list(G.nodes())
     if not nodes:
@@ -162,8 +90,8 @@ def generate_all_path_segments(case_name):
         return
 
     out_rows = []
-    for i, src in enumerate(nodes):
-        lengths, paths = nx.single_source_dijkstra(G, src, weight='weight')
+    for src in nodes:
+        _, paths = nx.single_source_dijkstra(G, src, weight='weight')
         for dst, path in paths.items():
             path_id = 1
             if dst == src:
@@ -196,8 +124,6 @@ def generate_all_path_segments(case_name):
                     from_direction_id = int(dir_code)
                     to_direction_id = int(dir_code)
 
-                # from_station_seq = seq_map[f]
-                # to_station_seq = seq_map[t]
                 out_rows.append({
                     'from_station': f,
                     'to_station': t,
@@ -209,8 +135,6 @@ def generate_all_path_segments(case_name):
                     'if_transfer': 1 if dir_code == 2 else 0,
                     'origin': src,
                     'destination': dst,
-                    # 'from_station_seq': from_station_seq,
-                    # 'to_station_seq': to_station_seq,
                 })
 
     out_cols = ['origin','destination','path_id','line_id','from_direction_id', 'to_direction_id', 'if_transfer','from_station','to_station','cumulated_travel_time']

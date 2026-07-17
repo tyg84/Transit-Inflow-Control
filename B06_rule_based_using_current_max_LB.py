@@ -1,15 +1,12 @@
 import pandas as pd
 import numpy as np
-import _constant
 import time
 import os
 
 from A05_generate_train_capacity import train_capacity_df
 from B01_simulation import (process_passenger_group_by_origin,
-                            assign_passenger_path, generate_event_list, save_all_logs,
-                            initialize_platforms, initialize_trains, offload_passengers,
-                            add_new_passengers_to_platform, get_num_board_passengers,
-                            onboard_passengers
+                            assign_passenger_path, generate_event_list, initialize_platforms, initialize_trains, offload_passengers,
+                            add_new_passengers_to_platform, onboard_passengers
                             )
 from collections import Counter
 

@@ -1,14 +1,11 @@
 import pandas as pd
 import numpy as np
-import _constant
 import time
 import os
 
 from B01_simulation import (process_passenger_group_by_origin,
-                            assign_passenger_path, generate_event_list, save_all_logs,
-                            initialize_platforms, initialize_trains, offload_passengers,
-                            add_new_passengers_to_platform, get_num_board_passengers,
-                            onboard_passengers
+                            assign_passenger_path, generate_event_list, initialize_platforms, initialize_trains, offload_passengers,
+                            add_new_passengers_to_platform, onboard_passengers
                             )
 from collections import Counter
 
@@ -162,19 +159,8 @@ def update_control_strategy(all_logs, all_trains, all_platforms, passenger_objec
         remained_pax_dict = previous_train.remaining_passenger_at_each_platform[platform_id]
         removed_pax_cnt = 0
         to_remove_pax_by_upstream_station = {}
-        last_platform_seq = all_platforms[platform_id].platform_seq
-        # for LB_time in range(max_lb_pax_times):
         platforms_to_keep_board_all = []
         for prev_platform_id, remained_pax in list(remained_pax_dict.items())[::-1]: # reverse order, from prev 1
-            # if all_platforms[prev_platform_id].platform_seq != last_platform_seq-1: # some platforms are skipped
-            #     seq_id_start = all_platforms[prev_platform_id].platform_seq
-            #     seq_id_end = last_platform_seq
-            #     platforms_to_keep_board_numbers = get_in_the_middle_platforms(platform_line_index, line_id, dir_id, seq_id_start, seq_id_end)
-            #     platform_to_keep_seq = [all_platforms[temp_plat_id].platform_seq for temp_plat_id in platforms_to_keep_board_numbers]
-            #     ### need reserve additional space for them:
-            #     print(f'platform to keep board: {platforms_to_keep_board_numbers}, seq: {platform_to_keep_seq}')
-            #     platforms_to_keep_board_all.extend(platforms_to_keep_board_numbers)
-            last_platform_seq = all_platforms[prev_platform_id].platform_seq
             for p_ob in remained_pax[::-1]: # reverse order, starting from last pax in queue
                 if prev_platform_id not in to_remove_pax_by_upstream_station:
                     to_remove_pax_by_upstream_station[prev_platform_id] = []
