@@ -54,7 +54,6 @@ def generate_events(headway, platforms, platform_travel_times):
     arrival_events['direction_id'] = arrival_events['platform_id'].str.split('_').str[2].astype(int)
     arrival_events = arrival_events.merge(first_arrival_event[['line_id','direction_id','train_id','train_dispatch_time']].drop_duplicates(),on=['line_id','direction_id','train_id'])
 
-    temp = arrival_events.loc[(arrival_events['train_id'] == 14) & (arrival_events['line_id'] == 4)]
     arrival_events.loc[~arrival_events['event_timestamp'].isna(), 'event_timestamp'] += arrival_events.loc[~arrival_events['event_timestamp'].isna(), 'train_dispatch_time']
     arrival_events.loc[arrival_events['event_timestamp'].isna(), 'event_timestamp'] = arrival_events.loc[arrival_events['event_timestamp'].isna(), 'train_dispatch_time']
     arrival_events = arrival_events.sort_values(['line_id','direction_id','train_id','event_timestamp'])

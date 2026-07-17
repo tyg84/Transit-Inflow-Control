@@ -4,8 +4,6 @@ import pandas as pd
 import numpy as np
 import _constant
 import copy
-import os
-import time
 
 class Event:
     def __init__(self, line_id, direction_id, station_id, platform_id, platform_seq_no, train_id, event_timestamp, event_type, event_id):

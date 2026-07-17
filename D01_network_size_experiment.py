@@ -1,4 +1,3 @@
-import os
 import time
 import heapq
 from pathlib import Path
@@ -446,8 +445,6 @@ def run_mlr_control(data_case_name, output_case_name, max_iter=MAX_ITER):
         print(f"===== {output_case_name}: iteration {iteration} =====")
         if output_file.exists():
             print(f"Skip existing iteration {iteration}")
-            if iteration > 0:
-                rng.uniform(0.0, 1.0, len(vector_to_platform_map))
             continue
         all_trains = {}
         all_platforms = {}
